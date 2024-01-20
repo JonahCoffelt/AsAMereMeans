@@ -1,12 +1,13 @@
 import pygame
 import math
+import random
 import slash
 
 class Player():
     def __init__(self, col, renderer) -> None:
         self.x = 10
         self.y = -5
-        self.size = (1, 1.5)
+        self.size = (1, 1.75)
 
         self.col = col
         self.renderer = renderer
@@ -14,7 +15,10 @@ class Player():
         self.slash = None
         self.combo_timer = 0
 
-        self.movement = [False, False, False] # Left, Right, Jump
+        self.movement = [False, False, False, False, False] # Left, Right, Jump, Up, Down
+        self.dash_timer = 0
+        self.dashes = 1
+        self.dash = [0, 0]
 
         # Horizontal Movement
         self.speed = 8
@@ -31,28 +35,43 @@ class Player():
         self.wall_jump_timers = [0, 0]
         self.air_time = 0
     
-    def update(self, events, mouse_world_pos, dt):
+    def update(self, events, mouse_world_pos, particles, dt):
         self.col_directions = {'up' : False, 'down' : False, 'right' : False, 'left' : False}
-
         for event in events:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_a:
                     self.movement[0] = True
                 if event.key == pygame.K_d:
                     self.movement[1] = True
+                if event.key == pygame.K_w:
+                    self.movement[3] = True
+                if event.key == pygame.K_s:
+                    self.movement[4] = True
                 if event.key == pygame.K_SPACE:
                     self.movement[2] = True
                     self.jump_que = .1
+                if event.key == pygame.K_LSHIFT:
+                    if not self.dash_timer and self.dashes:
+                        self.dashes -= 1
+                        self.dash_timer = .25
+                        if self.movement[0]: self.dash[0] -= self.speed * 2
+                        if self.movement[1]: self.dash[0] += self.speed * 2
+                        if self.movement[3]: self.dash[1] -= self.speed * 1.75
+                        if self.movement[4]: self.dash[1] += self.speed * 1.75
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_a:
                     self.movement[0] = False
                 if event.key == pygame.K_d:
                     self.movement[1] = False
+                if event.key == pygame.K_w:
+                    self.movement[3] = False
+                if event.key == pygame.K_s:
+                    self.movement[4] = False
                 if event.key == pygame.K_SPACE:
                     self.movement[2] = False
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if not self.slash:
-                    angle = math.atan2((self.y - mouse_world_pos[1]), (self.x - mouse_world_pos[0]))
+                    angle = math.atan2((self.y - mouse_world_pos[1] - self.size[1]/2), (self.x - mouse_world_pos[0]))
                     if self.combo_timer == 0:
                         self.slash = slash.Slash(self.x + math.cos(angle) * .1, self.y + math.sin(angle) * .1 - self.size[1]/2, angle, self.movement, self.renderer, reverse=False)
                         self.combo_timer: self.combo_timer = .5
@@ -60,6 +79,7 @@ class Player():
                         self.slash = slash.Slash(self.x + math.cos(angle) * .1, self.y + math.sin(angle) * .1 - self.size[1]/2, angle, self.movement, self.renderer, reverse=True)
                         self.combo_timer = -.5
                     else:
+                        self.slash = slash.Slash(self.x + math.cos(angle) * .1, self.y + math.sin(angle) * .1 - self.size[1]/2, angle, self.movement, self.renderer, stab=True)
                         self.combo_timer = 0
 
         if self.combo_timer > 0.0: 
@@ -76,7 +96,13 @@ class Player():
         self.x_velocity = min(self.speed, self.x_velocity)
         self.x_velocity = max(-self.speed, self.x_velocity)
 
-        self.x += self.x_velocity * dt
+        self.dash_timer = max(0, self.dash_timer - dt)
+
+        if self.dash_timer:
+            self.x += self.dash[0] * dt
+        else:
+            self.x += self.x_velocity * dt
+            self.dash = [0, 0]
 
         #Horizontal Collisions
         if self.collide():
@@ -93,6 +119,8 @@ class Player():
         if self.grounded():
             self.air_time = 0
             self.cayote_timer = .1
+            if self.movement[0] or self.movement[1]: 
+                if not random.randrange(int(1/(dt+.001))): particles.add_particles(random.randrange(2, 5), self.x, self.y, .15, .15, color=(122, 72, 65), gravity=10, simple_vert_vel=-3, angle=random.randrange(0, 360), angular_velocity=random.uniform(360, 720))
         else:
             self.air_time += dt
             if self.col_directions['left']:
@@ -132,16 +160,24 @@ class Player():
             self.velocity = min(5, self.velocity)
         else:
             self.velocity = min(30, self.velocity)
-        self.y += self.velocity * dt
+        
+        if not self.dash_timer: self.y += self.velocity * dt
+        else: 
+            self.velocity = self.dash[1]
+            self.y += self.dash[1] * dt
 
         if self.collide():
-            if self.velocity > 0: # Down
+            if self.velocity > 0 or self.dash[1] > 0: # Down
+                if self.velocity > 10: particles.add_particles(random.randrange(5, 8), self.x, self.y, .2, .2, color=(122, 72, 65), gravity=10, simple_vert_vel=-3, angle=random.randrange(0, 360), angular_velocity=random.uniform(360, 720))
                 self.y = math.floor(self.y) - .001
                 self.velocity = 0
                 self.jump = 1
-            elif self.velocity < 0: # Up
+                self.dashes = 1
+                self.dash[1] = 0
+            elif self.velocity < 0  or self.dash[1] < 0: # Up
                 self.y = math.floor(self.y) + self.size[1] - 1
                 self.velocity = 0
+                self.dash[1] = 0
 
     def draw(self, win_size, tile_size, cam, dt):
         self.tile_size = tile_size

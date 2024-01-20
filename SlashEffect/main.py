@@ -18,14 +18,22 @@ def get_arch_points(w, h, n):
     points = np.concatenate((np.stack((x, y1), axis=-1), np.stack((rev_x, y2), axis=-1)))
     return points
 
+def get_stab_points(w, h):
+    return [
+        (w/2, 0),
+        (w, h * 1/5),
+        (w/2, h),
+        (0, h * 1/5)
+    ]
+
 def draw():
     win.fill((0, 0, 0))
 
 
-    points = get_arch_points(mouse_pos[0]/4, mouse_pos[0]/8, 4)
-    slash_surf = pygame.Surface((mouse_pos[0]/4, mouse_pos[0]/8))
-    pygame.draw.polygon(slash_surf, (255, 0, 0), np.concatenate((points[:slash], points[-(slash-1):])))
-    win.blit(pygame.transform.scale(slash_surf, (mouse_pos[0], mouse_pos[1])), (0, 0))
+    points = get_stab_points(20, 100)
+    slash_surf = pygame.Surface((100, 100))
+    pygame.draw.polygon(slash_surf, (255, 0, 0), points)
+    win.blit(slash_surf, (0, 0))
 
     pygame.display.flip()
 
