@@ -35,7 +35,7 @@ class Player():
         self.wall_jump_timers = [0, 0]
         self.air_time = 0
     
-    def update(self, events, mouse_world_pos, particles, dt):
+    def update(self, events, mouse_world_pos, entities, particles, cam, dt):
         self.col_directions = {'up' : False, 'down' : False, 'right' : False, 'left' : False}
         for event in events:
             if event.type == pygame.KEYDOWN:
@@ -168,7 +168,9 @@ class Player():
 
         if self.collide():
             if self.velocity > 0 or self.dash[1] > 0: # Down
-                if self.velocity > 10: particles.add_particles(random.randrange(5, 8), self.x, self.y, .2, .2, color=(122, 72, 65), gravity=10, simple_vert_vel=-3, angle=random.randrange(0, 360), angular_velocity=random.uniform(360, 720))
+                if self.velocity > 10: 
+                    cam.shake()
+                    particles.add_particles(random.randrange(5, 8), self.x, self.y, .2, .2, color=(122, 72, 65), gravity=10, simple_vert_vel=-3, angle=random.randrange(0, 360), angular_velocity=random.uniform(360, 720))
                 self.y = math.floor(self.y) - .001
                 self.velocity = 0
                 self.jump = 1
@@ -178,14 +180,27 @@ class Player():
                 self.y = math.floor(self.y) + self.size[1] - 1
                 self.velocity = 0
                 self.dash[1] = 0
+        
+        if self.slash: 
+            for entity in entities:
+                entity_angle = math.atan2((self.y - entity.y), (self.x - entity.x))
+                lower = self.slash.angle - 1
+                upper = self.slash.angle + 1
+                if (entity_angle - lower) % 6.2831 <= (upper - lower) % 6.2831:
+                    if math.sqrt(((entity.x) - (self.x)) ** 2 + ((entity.y) - (self.y - self.size[1]/2)) ** 2) < 3:
+                        entity.hit(self, 1, 1)
+                        cam.shake()
+                elif math.sqrt(((entity.x) - (self.x)) ** 2 + ((entity.y) - (self.y - self.size[1]/2)) ** 2) < .75:
+                    entity.hit(self, 1, 1)
+                    cam.shake()
+
+            if self.slash.lifetime >= .25: self.slash = None
 
     def draw(self, win_size, tile_size, cam, dt):
         self.tile_size = tile_size
         self.renderer.draw_color = (255, 0, 0, 255)
         self.renderer.fill_rect((win_size[0]/2 - self.size[0]/2 * tile_size + (self.x - cam.x) * tile_size, win_size[1]/2 - self.size[1] * tile_size + (self.y - cam.y) * tile_size, self.size[0] * tile_size, self.size[1] * tile_size))
-        if self.slash: 
-            self.slash.draw(win_size, tile_size, cam, dt)
-            if self.slash.lifetime >= .25: self.slash = None
+        if self.slash: self.slash.draw(win_size, tile_size, cam, dt)
 
     def collide(self):
         return (math.floor(self.x + self.size[0]/2), math.floor(self.y)) in self.col or (math.floor(self.x - self.size[0]/2), math.floor(self.y)) in self.col or (math.floor(self.x + self.size[0]/2), math.floor(self.y - self.size[1])) in self.col or (math.floor(self.x - self.size[0]/2), math.floor(self.y - self.size[1])) in self.col

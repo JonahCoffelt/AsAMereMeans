@@ -53,11 +53,23 @@ class Particle():
             surf = pygame.Surface((w, h), pygame.SRCALPHA)
             pygame.draw.polygon(surf, self.color, points)
             self.texture = Texture.from_surface(self.renderer, surf)
+        elif shape == 2:
+            surf = pygame.Surface((15, 15), pygame.SRCALPHA)
+            pygame.draw.circle(surf, self.color, (7, 7), 7)
+            self.texture = Texture.from_surface(self.renderer, surf)
 
+        if self.glow:
+            self.glow_size = .4
+            self.texture.blend_mode = 2
     
     def draw(self, win_size, tile_size, cam):
         scale = self.lifetime / self.orig_life
+        if self.glow:
+            self.texture.alpha = 150
+            self.texture.draw(dstrect=(((self.x - cam.x - self.glow_size/2 * scale) * tile_size + win_size[0]/2, (self.y - cam.y - self.glow_size/2 * scale) * tile_size + win_size[1]/2, (self.w + self.glow_size) * tile_size * scale, (self.h + self.glow_size) * tile_size * scale)), angle=self.angle)
+            self.texture.alpha = 255
         self.texture.draw(dstrect=(((self.x - cam.x) * tile_size + win_size[0]/2, (self.y - cam.y) * tile_size + win_size[1]/2, self.w * tile_size * scale, self.h * tile_size * scale)), angle=self.angle)
+
 
     def update(self, dt):
         self.lifetime -= dt

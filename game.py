@@ -28,13 +28,19 @@ class Game():
     def update(self):
         self.level_renderer.set_tile_size(self.win_size, self.cam.zoom)
 
-        self.player.update(self.events, self.mouse_world_pos, self.particles, self.dt)
+        self.player.update(self.events, self.mouse_world_pos, self.entities, self.particles, self.cam, self.dt)
         self.cam.update(self.mouse_world_pos, self.dt)
         self.particles.update(self.dt)
         
+        removes = []
         for entity in self.entities:
-            if self.player.slash: entity.slash_collide(self.player)
-            entity.update(self.level_renderer.col, self.dt)
+            if entity.update(self.level_renderer.col, self.dt): removes.append(entity)
+            if entity.acts: entity.act(self.player, self.level_renderer.col, self.dt)
+
+        for entity in removes:
+            #self.particles.add_particles(5, entity.x, entity.y, .4, .4, color=(225, 225, 225), glow=True, gravity=10, simple_vert_vel=-3, shape=2)
+            self.particles.add_particles(1, entity.x, entity.y, .2, .2, color=(225, 225, 225), glow=True, gravity=10, simple_vert_vel=-3, shape=1)
+            self.entities.remove(entity)
 
         self.draw()
     
@@ -48,7 +54,6 @@ class Game():
         self.player.draw(self.win_size, self.level_renderer.tile_size, self.cam, self.dt)
         for entity in self.entities: 
             entity.draw(self.cam, self.level_renderer.tile_size, self.win_size)
-            entity.pursue(self.player, self.level_renderer.col, self.dt)
 
         self.particles.draw(self.win_size, self.level_renderer.tile_size, self.cam)
 
